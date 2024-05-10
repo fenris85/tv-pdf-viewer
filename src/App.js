@@ -9,8 +9,36 @@ function convertTradingViewLink(url) {
   if (identifier == '') {
     identifier = url.split('/').slice(-2)[0];
   }
-  const newUrl = `https://s3.tradingview.com/snapshots/i/${identifier}.png`;
-  return newUrl;
+  return identifier;
+}
+
+const buckets = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+
+function checkImageAvailability(url) {
+  return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {resolve(true);}
+      img.onerror = () => {reject(new Error("Image failed to load at URL: " + url))};
+      img.src = url;
+  });
+}
+
+async function findFirstValidImage(identifier) {
+  let bucketIndex = 0;
+  let validLink = null;
+
+  while (true) {    
+      try {
+        const imgLink = `https://s3.tradingview.com/snapshots/${buckets[bucketIndex]}/${identifier}.png`
+        validLink = imgLink;
+        const res = await checkImageAvailability(imgLink);
+    } catch (error) {
+        console.error(error.message);
+        bucketIndex++;
+        continue;
+    }
+    return validLink;
+  }
 }
 
 function generatePDF(linksContent) {  
@@ -23,6 +51,7 @@ function generatePDF(linksContent) {
   const tvLinks = linksContent.split('\n');
 
   const tvImages = tvLinks.map(link => {
+    if(link.trim() == '') return;
     return convertTradingViewLink(link);
   });  
 
@@ -36,16 +65,24 @@ function generatePDF(linksContent) {
               resolve();
           };
           img.onerror = reject;
-          img.src = link;
+
+          
+          findFirstValidImage(link).then(imgLink => {
+            img.src = imgLink
+          });
+           
+          
       }));
   });
 
   Promise.all(promises).then(() => {
       images.forEach((img, index) => {
           if (index > 0) doc.addPage();
-          doc.addImage(img, 'PNG', 0, 0, 237, 150); // Assuming A4 size page
+           doc.addImage(img, 'PNG', 0, 0, 237, 150);
+           
+          
       });
-      doc.save('tradingview_images.pdf');
+      doc.save('tradingview_snapshots.pdf');
   }).catch(error => {
       console.error('Error loading images:', error);
   });
