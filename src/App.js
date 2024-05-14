@@ -12,7 +12,7 @@ function convertTradingViewLink(url) {
   return identifier;
 }
 
-const buckets = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+const buckets = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
 
 function checkImageAvailability(url) {
   return new Promise((resolve, reject) => {
@@ -28,6 +28,8 @@ async function findFirstValidImage(identifier) {
   let validLink = null;
 
   while (true) {    
+
+
       try {
         const imgLink = `https://s3.tradingview.com/snapshots/${buckets[bucketIndex]}/${identifier}.png`
         validLink = imgLink;
@@ -48,35 +50,50 @@ function generatePDF(linksContent) {
     format: [237, 150]
 });
 
-  const tvLinks = linksContent.split('\n');
+  let tvLinks = linksContent.split('\n');
+
+  console.log('links ', tvLinks );
+  
+  tvLinks = tvLinks.filter(link => link.trim() != '');
+  console.log('links2 ', tvLinks );
 
   const tvImages = tvLinks.map(link => {
-    if(link.trim() == '') return;
     return convertTradingViewLink(link);
   });  
 
   let promises = [];
-  let images = [];
-  tvImages.forEach(link => {
-      promises.push(new Promise((resolve, reject) => {
-          let img = new Image();
-          img.onload = () => {
-              images.push(img);
-              resolve();
-          };
-          img.onerror = reject;
+  // let images = [];
 
-          
-          findFirstValidImage(link).then(imgLink => {
-            img.src = imgLink
-          });
-           
-          
-      }));
-  });
+  for(let link of tvImages) {
 
-  Promise.all(promises).then(() => {
-      images.forEach((img, index) => {
+    promises.push(new Promise((resolve, reject) => {
+      let img = new Image();
+      // img.onload = () => {
+      //     // images.push(img);
+          
+      // };
+      img.onerror = reject;
+
+      findFirstValidImage(link).then(imgLink => {
+        img.src = imgLink
+
+        console.log('VALID LINK', imgLink );
+        
+        resolve(img);
+      });
+  }));
+
+  }
+
+  console.log('PROMISES LEN', promises.length );
+  
+  Promise.all(promises).then((resolved) => {
+
+    console.log('resolved', resolved );
+    // console.log('images', images );
+    
+    
+    resolved.forEach((img, index) => {
           if (index > 0) doc.addPage();
            doc.addImage(img, 'PNG', 0, 0, 237, 150);
            
@@ -108,6 +125,22 @@ function App() {
       <br/>
       <br/>
       <button onClick={()=>generatePDF(text)}>Generate PDF</button>
+
+      <br/>
+      <br/>
+      <br/>
+      <br/>
+      <br/>
+      <br/>
+
+      <p style={{color: '#787878'}}>Sample TradingView Snapshots Links</p>
+      <pre style={{color: '#787878'}}>
+https://www.tradingview.com/x/awfk24YU/<br/>
+https://www.tradingview.com/x/BTLAxR4P/<br/>
+https://www.tradingview.com/x/X8YT3o15/<br/>
+https://www.tradingview.com/x/1iLV9TwK/<br/>
+
+    </pre>
     </div>
   );
 }
